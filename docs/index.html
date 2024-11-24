@@ -1,47 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <title>Speech Detection</title>
+  <title>Mazigle Speech Recognizer</title>
 </head>
-<body>
 
-  <div class="words" contenteditable>
+<body>
+  <div class="input-container">
+    <input type="text" id="target" class="styled-input" placeholder="따라읽기 텍스트 입력" value="기억나 우리 처음 만난 날 내게 오던 너의 그 미소가">
+    <!-- <button class="styled-button">Submit</button> -->
   </div>
 
-<script>
-  window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  <div class="words" contenteditable="">
+  </div>
 
-  let recognition = new SpeechRecognition();
-  recognition.interimResults = true;
-  recognition.lang = 'ko-KR';
-//   recognition.continuous = true;
+  <script>
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  let makeNewTextContent = function() {
-    p = document.createElement('p');
-    document.querySelector('.words').appendChild(p);
-  };
+    const recognition = new SpeechRecognition();
+    recognition.interimResults = true;
+    recognition.lang = 'ko-KR';
+    // recognition.continuous = true;
 
-  let p = null;
+    const content = {
+      p: null,
 
-  recognition.start();
-  recognition.onstart = function() {
-    makeNewTextContent(); // 음성 인식 시작시마다 새로운 문단을 추가한다.
-  };
-  recognition.onend = function() {
+      makeNewContent: function () {
+        this.p = document.createElement('p');
+        document.querySelector('.words').appendChild(this.p);
+      },
+
+      updateContent: function (text) {
+        this.p.textContent = text;
+
+        const target = document.getElementById('target').value
+        const target_no_white = target.replace(/\s/g, '');
+        const input_no_white = text.replace(/\s/g, '');
+
+        const dist = editDistance(input_no_white, target_no_white);
+        const correctness = Math.max(0, 1 - dist / target_no_white.length);
+
+        this.p.textContent += ` (${(correctness*100).toFixed(0)}%)`;
+      }
+    }
+
+    function editDistance(str1, str2) {
+      const len1 = str1.length;
+      const len2 = str2.length;
+
+      // Create a 2D array (len1+1 x len2+1)
+      const dp = Array.from({ length: len1 + 1 }, () => Array(len2 + 1).fill(0));
+
+      // Initialize the DP table
+      for (let i = 0; i <= len1; i++) {
+        dp[i][0] = i; // Cost of deleting all characters from str1
+      }
+      for (let j = 0; j <= len2; j++) {
+        dp[0][j] = j; // Cost of inserting all characters to str1
+      }
+
+      // Fill the DP table
+      for (let i = 1; i <= len1; i++) {
+        for (let j = 1; j <= len2; j++) {
+          if (str1[i - 1] === str2[j - 1]) {
+            // Characters match, no cost
+            dp[i][j] = dp[i - 1][j - 1];
+          } else {
+            // Minimum of insert, delete, or substitute
+            dp[i][j] = Math.min(
+              dp[i - 1][j] + 1, // Deletion
+              dp[i][j - 1] + 1, // Insertion
+              dp[i - 1][j - 1] + 1 // Substitution
+            );
+          }
+        }
+      }
+
+      // The edit distance is in the bottom-right cell
+      return dp[len1][len2];
+    }
+
+
     recognition.start();
-  };
+    recognition.onstart = function () {
+      // 음성 인식 시작시마다 새로운 문단을 추가한다.
+      content.makeNewContent();
+    };
+    recognition.onend = function (e) {
+      console.log(e);
+      const TIME_IN_MS = 200;
+      setTimeout(() => {
+        recognition.start();
+      }, TIME_IN_MS);
 
-  recognition.onresult = function(e) {
-    console.log(e);
-    let texts = Array.from(e.results)
-            .map(results => results[0].transcript).join("");
+    };
+    recognition.onresult = function (e) {
+      console.log(e);
+      let texts = Array.from(e.results)
+        .map(results => results[0].transcript).join("");
 
-    texts.replace(/느낌표|강조|뿅/gi, '❗️');
-
-    p.textContent = texts;
-  };
-</script>
+      content.updateContent(texts);
+    };
+  </script>
 
 
   <style>
@@ -50,7 +111,7 @@
     }
 
     body {
-      background: #ffc600;
+      background: #d0d0d0;
       font-family: 'helvetica neue';
       font-weight: 200;
       font-size: 20px;
@@ -61,7 +122,7 @@
       margin: 50px auto;
       background: white;
       border-radius: 5px;
-      box-shadow: 10px 10px 0 rgba(0,0,0,0.1);
+      box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.1);
       padding: 1rem 2rem 1rem 5rem;
       background: -webkit-gradient(linear, 0 0, 0 100%, from(#d9eaf3), color-stop(4%, #fff)) 0 4px;
       background-size: 100% 3rem;
@@ -85,5 +146,65 @@
     }
   </style>
 
+
+  <style>
+    /* 컨테이너 스타일 */
+    .input-container {
+      text-align: center;
+    }
+
+    /* 입력 필드 스타일 */
+    .styled-input {
+      width: 90%;
+      padding: 10px 15px;
+      border: 2px solid #ddd;
+      border-radius: 25px;
+      /* 둥근 테두리 */
+      font-size: 16px;
+      outline: none;
+      /* 포커스 테두리 제거 */
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      /* 부드러운 그림자 */
+      transition: border-color 0.3s, box-shadow 0.3s;
+      /* 포커스 시 효과 */
+    }
+
+    /* 입력 필드 포커스 스타일 */
+    .styled-input:focus {
+      border-color: #6c63ff;
+      /* 포커스 시 색상 변경 */
+      box-shadow: 0 6px 12px rgba(108, 99, 255, 0.2);
+    }
+
+    /* 추가 버튼 스타일 */
+    .styled-button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 25px;
+      background-color: #6c63ff;
+      /* 버튼 배경색 */
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+
+    .styled-button:hover {
+      background-color: #5548c8;
+      transform: scale(1.05);
+    }
+
+    .styled-button:active {
+      transform: scale(1);
+    }
+
+    .colored-letter {
+      display: inline-block;
+      transition: color 0.3s ease;
+      /* 부드러운 색상 전환 */
+    }
+  </style>
 </body>
+
 </html>
