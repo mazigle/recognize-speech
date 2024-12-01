@@ -10,29 +10,47 @@
   <h1>Mazigle Speech Recognition Demo</h1>
   <div class="input-container">
     <input type="text" id="target" class="styled-input" placeholder="따라읽기 텍스트 입력" value="기억나 우리 처음 만난 날 내게 오던 너의 그 미소가">
-    <!-- <button class="styled-button">Submit</button> -->
   </div>
+  <div class="input-container">
+    <button
+      id="startButton"
+      onclick="recognition.start()"
+      class="styled-button">
+      Start
+    </button>
+  </div> 
 
   <div class="words" contenteditable="">
   </div>
 
   <script>
-    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    window.SpeechRecognition = window.SpeechRecognition || 
+      window.webkitSpeechRecognition;
 
     const recognition = new SpeechRecognition();
     recognition.interimResults = true;
     recognition.lang = 'ko-KR';
     // recognition.continuous = true;
 
+    const startButton = document.getElementById('startButton');
+
     const content = {
       p: null,
 
-      makeNewContent: function () {
+      makeNewContent() {
         this.p = document.createElement('p');
         document.querySelector('.words').appendChild(this.p);
       },
 
-      updateContent: function (text) {
+      getContent() {
+        return this.p.textContent;
+      },
+
+      setContent(text) {
+        this.p.textContent = text;
+      },
+
+      setContentWithScore(text) {
         this.p.textContent = text;
 
         const target = document.getElementById('target').value
@@ -83,25 +101,22 @@
     }
 
 
-    recognition.start();
     recognition.onstart = function () {
       // 음성 인식 시작시마다 새로운 문단을 추가한다.
       content.makeNewContent();
-    };
-    recognition.onend = function (e) {
-      console.log(e);
-      const TIME_IN_MS = 200;
-      setTimeout(() => {
-        recognition.start();
-      }, TIME_IN_MS);
-
+      startButton.textContent = 'Listening...';
     };
     recognition.onresult = function (e) {
       console.log(e);
       let texts = Array.from(e.results)
         .map(results => results[0].transcript).join("");
-
-      content.updateContent(texts);
+      content.setContentWithScore(texts);
+    };
+    recognition.onend = function (e) {
+      const text = content.getContent();
+      if (text.length === 0)
+        content.setContent("[음성 인식 실패]");
+      startButton.textContent = 'Start';
     };
   </script>
 
